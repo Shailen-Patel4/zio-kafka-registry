@@ -6,7 +6,7 @@ import io.confluent.kafka.schemaregistry.client.security.basicauth.BasicAuthCred
 import io.confluent.kafka.schemaregistry.client.security.bearerauth.BearerAuthCredentialProvider
 import javax.net.ssl.SSLSocketFactory
 import org.apache.avro.Schema
-import zio.{Semaphore, RIO, ZIO}
+import zio.{RIO, ZIO}
 import zio.blocking._
 
 

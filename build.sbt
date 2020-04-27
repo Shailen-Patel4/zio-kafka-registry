@@ -8,6 +8,7 @@ inThisBuild(Seq(
   version := "0.1.1",
   isSnapshot := false,
   scalaVersion := "2.12.10",
+  // scalaVersion := "2.13",
   resolvers += "confluent" at "https://packages.confluent.io/maven/",
   useCoursier := false
 ))

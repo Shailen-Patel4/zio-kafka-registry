@@ -2,7 +2,7 @@ package zio.kafka.registry
 
 import net.manub.embeddedkafka.schemaregistry.{EmbeddedKWithSR, EmbeddedKafka}
 import org.apache.kafka.clients.consumer.ConsumerConfig
-import zio.{Cause, Chunk, Managed, RIO, UIO, ZIO, Has, IO}
+import zio.{Chunk, ZIO, Has, RIO}
 import org.apache.kafka.clients.producer.ProducerRecord
 import zio.blocking.Blocking
 import zio.clock.Clock
@@ -26,9 +26,6 @@ import zio.kafka.registry.confluentClientService.ConfluentClientService
 import zio.ZLayer
 import izumi.reflect.Tags.Tag
 
-import zio.test.{suite, DefaultRunnableSpec}
-import zio.test.TestAspect.sequential
-
 package object kafka {
 
   import zio.Has
@@ -37,7 +34,7 @@ package object kafka {
     trait Service {
       def bootstrapServers: List[String]
       def registryServer: String
-      def stop(): UIO[Unit]
+      def stop(): ZIO[Any, Nothing, Unit]
     }
 
     case class EmbeddedKafkaService(embeddedK: EmbeddedKWithSR) extends Kafka.Service {
@@ -45,17 +42,19 @@ package object kafka {
       val schemaRegistryPort = 6002
       override def bootstrapServers: List[String] = List(s"localhost:$kafkaPort")
       override def registryServer: String = s"http://localhost:$schemaRegistryPort"
-      override def stop(): UIO[Unit]              = ZIO.effectTotal(embeddedK.stop(true))
+      override def stop(): ZIO[Any, Nothing, Unit]        = ZIO.effectTotal(embeddedK.stop(true))
     }
     case object DefaultLocal extends Kafka.Service {
-      override def bootstrapServers: List[String] = List(s"kafka.focaldata.dev:9092")
-      override def registryServer: String = s"http://schemaregistry.focaldata.dev"
+      override def bootstrapServers: List[String] = List(s"http://localhost:9092")
+      override def registryServer: String = s"http://localhost:3000"
 
-      override def stop(): UIO[Unit] = UIO.unit
+      override def stop(): ZIO[Any, Nothing, Unit] = ZIO.unit
     }
 
-    def makeEmbedded: ZLayer[Any, Nothing, Kafka] = ZLayer.succeed(
+    def makeEmbedded: ZLayer[Any, Nothing, Kafka] = ZLayer.succeed({
+      println("making -----")
       EmbeddedKafkaService(EmbeddedKafka.start())
+    }
     )
 
     def makeLocal: ZLayer[Any, Nothing, Kafka] = ZLayer.succeed(
@@ -101,6 +100,11 @@ import zio.kafka.registry.Settings.TopicNameStrategy
 
       def produceMany[T](t: String, kvs: Iterable[(String, T)])
                     (implicit recordFormat: RecordFormat[T]): ZIO[Blocking, Throwable, Chunk[RecordMetadata]]
+      def stop(): ZIO[Any, Nothing, Unit]
+
+      def adminSettings: ZIO[Any, Nothing, AdminClientSettings]
+
+      def withAdmin[T](f: AdminClient => RIO[Any with Clock with Blocking, T]): ZIO[Any with Clock with Blocking, Throwable, T]
 
     }
     def live = ZLayer.fromServices[kafka.Kafka.Service, ConfluentClientService.Service, KafkaRegistryTestUtils.Service]((k: kafka.Kafka.Service, ccs: ConfluentClientService.Service) =>
@@ -174,8 +178,30 @@ import zio.kafka.registry.Settings.TopicNameStrategy
       p.get.produceChunk(chunk)
     }.flatten
 
+    def stop() = k.stop()
 
+    def adminSettings = ZIO.succeed(AdminClientSettings(k.bootstrapServers))
 
+    def withAdmin[T](f: AdminClient => RIO[Any with Clock with Blocking, T]) =
+    for {
+      settings <- adminSettings
+      fRes <- AdminClient
+              .make(settings)
+              .use{client => f(client)}
+    } yield fRes
+
+    // // temporary workaround for zio issue #2166 - broken infinity
+    // val veryLongTime = Duration.fromNanos(Long.MaxValue)
+
+    // def randomThing(prefix: String) =
+    //   for {
+    //     random <- ZIO.environment[Random]
+    //     l      <- random.random.nextLong(8)
+    //   } yield s"$prefix-$l"
+
+    // def randomTopic = randomThing("topic")
+
+    // def randomGroup = randomThing("group")
     }
     )
     def produceMany[T](t: String, kvs: Iterable[(String, T)])
@@ -187,48 +213,40 @@ import zio.kafka.registry.Settings.TopicNameStrategy
                                 clientId: String)(
       r: Consumer[Any with Blocking with Clock, K, V] => RIO[Any with Clock with Blocking, A])
       (implicit ktag: Tag[K], vtag: Tag[V]) = ZIO.accessM[KafkaRegistryTestUtils with Blocking with Clock](_.get.withConsumer(kSerde,vSerde,groupId,clientId)(r))
+    def stop = ZIO.accessM[KafkaRegistryTestUtils](_.get.stop())
+
   }
-
-
-
-  // def adminSettings =
-  //   for {
-  //     servers <- ZIO.access[kafka.Kafka.Service](_.bootstrapServers)
-  //   } yield AdminClientSettings(servers)
-
-  // def withAdmin[T](f: AdminClient => RIO[Any with Clock with kafka.Kafka with Blocking, T]) =
-  //   for {
-  //     settings <- adminSettings
-  //     fRes <- AdminClient
-  //              .make(settings)
-  //              .use { client =>
-  //                f(client)
-  //              }
-  //   } yield fRes
-
-  // // temporary workaround for zio issue #2166 - broken infinity
-  // val veryLongTime = Duration.fromNanos(Long.MaxValue)
-
-  // def randomThing(prefix: String) =
-  //   for {
-  //     random <- ZIO.environment[Random]
-  //     l      <- random.random.nextLong(8)
-  //   } yield s"$prefix-$l"
-
-  // def randomTopic = randomThing("topic")
-
-  // def randomGroup = randomThing("group")
-
-
 
 }
 
+import zio.test.{suite, DefaultRunnableSpec, testM}
+import zio.test.TestAspect.sequential
+import zio.test.assert
+import zio.test.Assertion._
 object AllSuites extends DefaultRunnableSpec {
+  import zio.kafka.registry.confluentRestServiceReq.ConfluentRestServiceReq
+  import zio.kafka.registry.confluentRestService.ConfluentRestService
+  import zio.kafka.registry.kafkaRegistryTestUtils.KafkaRegistryTestUtils
   import TestRestConfluent.restSuite
   import TestProducerSupport.prodConSuite
 
+  val crlr = ConfluentRestServiceReq.live
+  val crl = crlr >>> ConfluentRestService.live("http://localhost:6002")
+  val ccsLayer = (crl ++crlr ++ Blocking.live) >>> ConfluentClientService.live("http://localhost:6002", 1000)
+  val kafkaLayer = kafka.Kafka.makeEmbedded
+  val krtuLayer = (kafkaLayer ++ ccsLayer) >>> KafkaRegistryTestUtils.live
+
+
+  // Work around to calling kafkaService.stop so tests release kafka upon completion
+  // Made tests run sequentially and this suite must always be last
+  val clearUp = suite("Release resources")(
+    testM("Release Kafka"){
+      for {
+        _ <- kafkaRegistryTestUtils.KafkaRegistryTestUtils.stop
+      } yield assert(true)(equalTo(true))
+    }
+  ) @@ sequential
   def spec = {
-    val kafkaLayer = kafka.Kafka.makeEmbedded
-    suite("All Tests")(restSuite, prodConSuite(kafkaLayer))
+    suite("All Tests")(restSuite, prodConSuite, clearUp).provideLayerShared(krtuLayer ++ Blocking.live ++ Clock.live ++ ccsLayer) @@ sequential
   }
 }

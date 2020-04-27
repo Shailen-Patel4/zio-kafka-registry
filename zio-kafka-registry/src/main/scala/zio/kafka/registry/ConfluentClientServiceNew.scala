@@ -12,7 +12,7 @@ import io.confluent.kafka.schemaregistry.client.CachedSchemaRegistryClient
 import io.confluent.kafka.serializers.{AbstractKafkaAvroSerDeConfig, KafkaAvroDeserializer, KafkaAvroSerializer}
 import zio.kafka.registry.AvroSerdes.{AvroDeserializer, AvroGenericDeserializer, AvroSerializer}
 import zio.kafka.registry.Settings.SubjectNameStrategy
-import zio.{IO, RIO, Semaphore, Task, ZIO}
+import zio.{IO, Task, ZIO}
 
 import scala.collection.JavaConverters._
 import scala.reflect.ClassTag
@@ -363,5 +363,10 @@ import zio.kafka.registry.confluentRestServiceReq.ConfluentRestServiceReq
     def avroDeserializer[T : ClassTag](subjectNameStrategy: SubjectNameStrategy,
                           additionalParams: Map[String, Any] = Map.empty) = ZIO.accessM[ConfluentClientService](_.get.avroDeserializer(subjectNameStrategy, additionalParams))
     def version(subject: String, versionId: Option[Int]) = ZIO.accessM[ConfluentClientService](_.get.version(subject, versionId))
+    def setConfig(subject: String, compatibilityLevel: CompatibilityLevel) = ZIO.accessM[ConfluentClientService](_.get.setConfig(subject, compatibilityLevel))
+    def setConfig(compatibilityLevel: CompatibilityLevel) = ZIO.accessM[ConfluentClientService](_.get.setConfig(compatibilityLevel))
+    def compatible(subject: String, versionId: Int, schema: avro.Schema) = ZIO.accessM[ConfluentClientService](_.get.compatible(subject, versionId, schema))
+    def config = ZIO.accessM[ConfluentClientService](_.get.config)
+    def config(subject: String) = ZIO.accessM[ConfluentClientService](_.get.config(subject))
   }
 }
