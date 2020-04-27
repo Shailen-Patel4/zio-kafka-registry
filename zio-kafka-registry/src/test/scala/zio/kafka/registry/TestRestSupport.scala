@@ -2,10 +2,6 @@ package zio.kafka.registry
 
 import zio.ZIO
 import zio.test._
-// import zio.test.environment.TestEnvironment
-// import zio.clock.Clock
-// import zio.console.Console
-// import zio.blocking.Blocking
 import Assertion._
 import com.sksamuel.avro4s.{AvroSchema, RecordFormat}
 import confluentRestService.ConfluentRestService._
