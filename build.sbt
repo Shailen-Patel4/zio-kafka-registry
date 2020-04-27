@@ -46,16 +46,16 @@ val squants = "org.typelevel"  %% "squants"  % "1.3.0"
 
 // val magnolia = "com.softwaremill" %% "magnolia" % "0.11.0-sml"
 val magnolia = "com.propensive" %% "magnolia" % "0.12.0"
-lazy val zioVersion           = "1.0.0-RC17+95-e10fe4c0"
-lazy val zioKafkaVersion           = "0.4.1+34-69f19fa2+20191205-1812"
+lazy val zioVersion           = "1.0.0-RC18-2"
+lazy val zioKafkaVersion           = "0.7.0"
 lazy val embeddedKafkaVersion = "2.4.0-SNAPSHOT"
-lazy val embeddedKafkaRegistryVersion = "5.4.0-SNAPSHOT"
+lazy val embeddedKafkaRegistryVersion = "5.4.0"
 lazy val zio = "dev.zio" %% "zio" %  `zioVersion`
 lazy val `zio-kafka` = "dev.zio" %% "zio-kafka"   % zioKafkaVersion
-lazy val `zio-test` = "dev.zio" %% "zio-test" % `zioVersion` % "test"
-lazy val `zio-test-sbt` = "dev.zio" %% "zio-test-sbt" % `zioVersion` % "test"
-lazy val `embedded-kafka-schema` = "io.github.embeddedkafka" %% "embedded-kafka-schema-registry" % embeddedKafkaRegistryVersion % "test"
-lazy val `embedded-kafka-streams` = "io.github.embeddedkafka" %% "embedded-kafka-schema-streams" % embeddedKafkaVersion % "test"
+lazy val `zio-test` = "dev.zio" %% "zio-test" % `zioVersion` % Test
+lazy val `zio-test-sbt` = "dev.zio" %% "zio-test-sbt" % `zioVersion` % Test
+lazy val `embedded-kafka-schema` = "io.github.embeddedkafka" %% "embedded-kafka-schema-registry" % embeddedKafkaRegistryVersion % Test
+lazy val `embedded-kafka-streams` = "io.github.embeddedkafka" %% "embedded-kafka-schema-streams" % embeddedKafkaVersion % Test
 lazy val kafkaVersion         = "2.3.1"
 
 lazy val avro = "org.apache.avro" % "avro" % "1.9.1"
@@ -67,7 +67,7 @@ lazy val kafkaClients = "org.apache.kafka" % "kafka-clients" % kafkaVersion
 lazy val kafka = "org.apache.kafka" %% "kafka" % kafkaVersion
 
 lazy val commonSettings = Seq(
-  parallelExecution in Test := false,
+  // parallelExecution in Test := false,
   scalacOptions ++= myScalacOptions,
   organization := "org.timpigden",
 )
@@ -80,15 +80,15 @@ lazy val `zio-kafka-registry` = (project in file ("zio-kafka-registry"))
     zio,
     kafka,
     `zio-test`,
+    `zio-test-sbt`,
     `zio-kafka`,
     avro4s,
     `embedded-kafka-schema`,
     snappy,
     confluentSerializer,
     confluentRegistry
+  ),
+  testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework")
   )
-
-  )
-
-parallelExecution in Test := false
+// Test / parallelExecution := false
 

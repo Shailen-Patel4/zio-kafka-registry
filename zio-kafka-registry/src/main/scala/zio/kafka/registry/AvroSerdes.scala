@@ -5,7 +5,7 @@ import org.apache.avro.generic.GenericRecord
 import org.apache.kafka.common.header.Headers
 import zio.RIO
 import zio.blocking._
-import zio.kafka.client.serde.{Deserializer, Serializer}
+import zio.kafka.serde.{Deserializer, Serializer}
 
 import scala.reflect.ClassTag
 import com.sksamuel.avro4s.RecordFormat
