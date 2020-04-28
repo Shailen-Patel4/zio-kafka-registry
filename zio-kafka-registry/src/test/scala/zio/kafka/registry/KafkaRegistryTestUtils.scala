@@ -111,9 +111,6 @@ import zio.kafka.registry.Settings.TopicNameStrategy
     new Service {
       def registryProducerSettings = ZIO.succeed(ProducerSettings(k.bootstrapServers, 5.seconds, Map.empty)
       .withProperty("acks", "all")
-      // .withProperty("sasl.mechanism", "PLAIN")
-      // .withProperty("sasl.jaas.config","org.apache.kafka.common.security.plain.PlainLoginModule required username=\"test\" password=\"test123\";")
-      // .withProperty("security.protocol","SASL_PLAINTEXT")
       )
 
       def consumerSettings(groupId: String, clientId: String) = ZIO.succeed(ConsumerSettings(
@@ -129,9 +126,6 @@ import zio.kafka.registry.Settings.TopicNameStrategy
             ConsumerConfig.METADATA_MAX_AGE_CONFIG  -> "100",
           ))
         .withProperty("acks", "all")
-        // .withProperty("sasl.mechanism", "PLAIN")
-        // .withProperty("sasl.jaas.config","org.apache.kafka.common.security.plain.PlainLoginModule required username=\"test\" password=\"test123\";")
-        // .withProperty("security.protocol","SASL_PLAINTEXT")
         )
 
 
